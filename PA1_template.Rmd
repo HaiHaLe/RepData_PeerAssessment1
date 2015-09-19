@@ -1,25 +1,148 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: 'Reproducible Research: Peer Assessment 1'
+author: "Hai Ha Le"
+date: "September 19, 2015"
+output: html_document
 ---
-
 
 ## Loading and preprocessing the data
 
+###1. Load the data
+
+```{r}
+dt<-read.csv("activity.csv")
+str(dt)
+```
+###2. Process data
+We will convert the date field from string to the date type.
+
+```{r}
+dt$date<-as.Date(dt$date, format="%Y-%m-%d")
+str(dt)
+```
 
 
 ## What is mean total number of steps taken per day?
+###1. Calculate the total number of steps taken per day
+```{r}
+stepbydate<-aggregate(steps ~ date, dt, sum)
+str(stepbydate)
+```
+###2. Histogram and barplot of the total number of steps taken each day
+Histogram
+```{r}
+hist(stepbydate$steps)
+```
+Barplot
+```{r}
+barplot(stepbydate$steps)
+```
 
+###3.  Mean and median of the total number of steps taken per day
+Mean
+```{r}
+mean(stepbydate$steps)
+```
+Median
+```{r}
+median(stepbydate$steps)
+```
 
 
 ## What is the average daily activity pattern?
+###1. Make a time series plot (i.e. type = "l") of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all days (y-axis)
+```{r}
+gt<-aggregate(steps~interval, dt, mean)
+plot(gt$steps, type="l")
+```
 
-
+###2. Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
+```{r}
+m<-max(gt$steps)
+interval<-which(gt$steps==m)
+gt[interval,]
+```
 
 ## Imputing missing values
+
+###1. Calculate and report the total number of missing values in the dataset (i.e. the total number of rows with NAs)
+```{r}
+dtmis<-dt[is.na(dt$steps),]
+nrow(dtmis)
+```
+
+###2. Devise a strategy for filling in all of the missing values in the dataset. The strategy does not need to be sophisticated. For example, you could use the mean/median for that day, or the mean for that 5-minute interval, etc.
+We use the round of the meann for the 5-minute interval for each missing data.
+
+
+###3. Create a new dataset that is equal to the original dataset but with the missing data filled in.
+
+```{r}
+dt_new<-dt
+for (i in 1:nrow(dt_new)){
+  if (is.na(dt_new$steps[i])){
+    idx<-which(gt$interval==dt_new$interval[i])
+    dt_new$steps[i]=round(gt$steps[idx], digit=0)
+  }
+}
+
+str(dt_new)
+```
+
+
+###4. Make a histogram of the total number of steps taken each day and Calculate and report the mean and median total number of steps taken per day. Do these values differ from the estimates from the first part of the assignment? What is the impact of imputing missing data on the estimates of the total daily number of steps?
+
+New histogram
+```{r}
+stepbydate_new<-aggregate(steps ~ date, dt_new, sum)
+hist(stepbydate_new$steps)
+```
+
+New mean
+```{r}
+mean(stepbydate_new$steps)
+```
+
+New median
+```{r}
+median(stepbydate_new$steps)
+```
+
+**Diffences:**
+
+mean
+```{r}
+mean(stepbydate_new$steps) - mean(stepbydate$steps)
+```
+median
+```{r}
+median(stepbydate_new$steps) - median(stepbydate$steps)
+```
 
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+###1. Create a new factor variable in the dataset with two levels – “weekday” and “weekend” indicating whether a given date is a weekday or weekend day.
+```{r}
+dt1<-dt_new
+weekdays1 <- c('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday')
+dt1$daytype <- factor((weekdays(dt1$date) %in% weekdays1), 
+                   levels=c(FALSE, TRUE), labels=c('weekend', 'weekday'))
+```
+
+###2. Make a panel plot containing a time series plot (i.e. type = "l") of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all weekday days or weekend days (y-axis). See the README file in the GitHub repository to see an example of what this plot should look like using simulated data.
+
+```{r}
+aggdt<-aggregate(steps~interval+daytype, dt1, mean)
+library(ggplot2)
+g<-ggplot(aggdt, aes(x=interval, y=steps))
+g<-g+geom_line(color="blue")+ facet_wrap(~ daytype, ncol = 1) +theme_bw()
+g<-g+    theme(axis.line = element_line(colour = "black"),
+               panel.grid.major = element_blank(),
+               panel.grid.minor = element_blank(),
+               panel.background = element_blank())
+g<-g+ theme(strip.background = element_rect(fill="#FFE5CC"))
+g + xlab("Interval") + ylab("Number of steps")
+```
+
